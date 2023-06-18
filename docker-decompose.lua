@@ -1,0 +1,3 @@
+-- Read and parse file (docker-compose.yml) & Write a query for finding all containers
+-- docker-compose CLI API for getting container info
+-- API for setting popup info + telescope picker
