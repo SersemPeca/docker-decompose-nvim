@@ -1,11 +1,25 @@
 version: '3'
 
 services:
+  kek1:
+    a: b
+
   clean-hotel-backend:
+    kek:
+      [1, 2, 3]
     build: .
     environment:
       API_PORT: ${API_PORT}
       DB_CONNECTION_URL: ${DB_CONNECTION_URL}
       JWT_SECRET: ${JWT_SECRET}
     ports:
-      - "${API_PORT}:${API_PORT}clean-hotel-backend-clean-hotel-backend"
+      - "${API_PORT}:${API_PORT}"
+
+  a:
+    b: c
+
+  kek2:
+    a: b
+  
+  123:
+    a: b

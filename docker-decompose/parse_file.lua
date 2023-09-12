@@ -11,29 +11,26 @@
 
 -- Is cached in package-loaded table under key "docker-compose.cache"
 local cache = require("docker-decompose.cache")
+local utils = require("docker-decompose.utils")
 
 local function init()
     local bufnr = vim.api.nvim_get_current_buf()
 
     if (vim.bo[bufnr].filetype ~= "yaml") then
-        vim.notify("Mn si prost")
+        vim.notify("This plugin is only meant to be used for yaml files")
         return
     end
 
     local query_string = [[
-
-    ((block_mapping_pair
-    key: (flow_node 
-    (plain_scalar 
-    (string_scalar))) @_key
-    value: (block_node
-    (block_mapping
-    (block_mapping_pair
-    key: (_) @service
-    )))
-
-    )
-    (#lua-match? @_key "services"))
+      ((block_mapping_pair
+          key: (flow_node 
+                 (plain_scalar 
+                   (string_scalar))) @_key
+          value: (block_node
+                   (block_mapping
+                     (block_mapping_pair
+                       key: (_) @service))))
+       (#lua-match? @_key "services"))
     ]]
 
     local parser = vim.treesitter.get_parser(bufnr, "yaml", nil)
@@ -41,31 +38,29 @@ local function init()
     local root = parser:parse()[1]:root()
 
     local query = vim.treesitter.query.parse("yaml" , query_string)
-    local ns = vim.api.nvim_create_namespace("docker-decompose")
-    local hl_group = "CurSearch"
 
+    -- Clear old (if any) contaniers for this bufnr
+    if cache[bufnr] then
+        local ns = vim.api.nvim_create_namespace("docker-decompose")
+        vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+    end
+    cache[bufnr] = {}
+
+    -- Fill the cache for this bufnr
     for _pattern, match, _metadata in query:iter_matches(root, bufnr, 0, -1) do
         for id, node in pairs(match) do
             local name = query.captures[id]
             if (name == "service") then
-                cache[vim.treesitter.get_node_text(node, bufnr, nil)] = {bufnr = bufnr, node = node}
+                cache[bufnr][vim.treesitter.get_node_text(node, bufnr, nil)] = {
+                    node = node,
+                }
             end
         end
     end
 
-    for _name, pair in pairs(cache) do
-        local start_row, start_col, end_row, end_col
-            = vim.treesitter.get_node_range(pair.node)
-        vim.api.nvim_buf_set_extmark(pair.bufnr, ns, start_row, start_col, {
-            end_row = end_row,
-            end_col = end_col,
-            hl_group = "DiagnosticInfo",
-            virt_lines = {
-                {{string.rep(' ', start_col).."Status: ", hl_group}, {"ALIVE", hl_group}},
-                {{string.rep(' ', start_col).."Port: 8080", hl_group}},
-            },
-        })
-    end
+    utils.populate_container_status(bufnr)
+
+    utils.start_listening_for_events(bufnr)
 end
 
 return init
